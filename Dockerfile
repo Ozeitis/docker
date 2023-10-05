@@ -63,8 +63,6 @@ RUN { \
 		echo 'opcache.fast_shutdown=1'; \
 	} > /usr/local/etc/php/conf.d/opcache-recommended.ini
 
-ENV MATOMO_VERSION %%VERSION%%
-
 RUN set -ex; \
 	fetchDeps=" \
 		dirmngr \
