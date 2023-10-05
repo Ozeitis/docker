@@ -84,7 +84,7 @@ COPY docker-entrypoint.sh /entrypoint.sh
 
 # WORKDIR is /var/www/html (inherited via "FROM php")
 # "/entrypoint.sh" will populate it at container startup from /usr/src/matomo
-VOLUME /var/www/html
+RAILWAY_VOLUME_NAME humor-disk
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["%%CMD%%"]
