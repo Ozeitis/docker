@@ -4,21 +4,21 @@ ENV PHP_MEMORY_LIMIT=256M
 
 RUN set -ex; \
 	\
-	apk add --no-cache --virtual .build-deps \
-		$PHPIZE_DEPS \
-		autoconf \
-		freetype-dev \
-		icu-dev \
-		libjpeg-turbo-dev \
+	savedAptMark="$(apt-mark showmanual)"; \
+	\
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		libfreetype-dev \
+		libjpeg-dev \
+		libldap2-dev \
 		libpng-dev \
 		libzip-dev \
-		openldap-dev \
-		pcre-dev \
 		procps \
 	; \
 	\
+	debMultiarch="$(dpkg-architecture --query DEB_BUILD_MULTIARCH)"; \
 	docker-php-ext-configure gd --with-freetype --with-jpeg; \
-	docker-php-ext-configure ldap; \
+	docker-php-ext-configure ldap --with-libdir="lib/$debMultiarch"; \
 	docker-php-ext-install -j "$(nproc)" \
 		gd \
 		bcmath \
@@ -39,14 +39,19 @@ RUN set -ex; \
 	; \
 	rm -r /tmp/pear; \
 	\
-	runDeps="$( \
-		scanelf --needed --nobanner --format '%n#p' --recursive /usr/local/lib/php/extensions \
-		| tr ',' '\n' \
+# reset apt-mark's "manual" list so that "purge --auto-remove" will remove all build dependencies
+	apt-mark auto '.*' > /dev/null; \
+	apt-mark manual $savedAptMark; \
+	ldd "$(php -r 'echo ini_get("extension_dir");')"/*.so \
+		| awk '/=>/ { so = $(NF-1); if (index(so, "/usr/local/") == 1) { next }; gsub("^/(usr/)?", "", so); print so }' \
 		| sort -u \
-		| awk 'system("[ -e /usr/local/lib/" $1 " ]") == 0 { next } { print "so:" $1 }' \
-	)"; \
-	apk add --no-network --virtual .matomo-phpext-rundeps $runDeps; \
-	apk del --no-network .build-deps
+		| xargs -r dpkg-query --search \
+		| cut -d: -f1 \
+		| sort -u \
+		| xargs -rt apt-mark manual; \
+	\
+	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false; \
+	rm -rf /var/lib/apt/lists/*
 
 # set recommended PHP.ini settings
 # see https://secure.php.net/manual/en/opcache.installation.php
@@ -61,8 +66,13 @@ RUN { \
 ENV MATOMO_VERSION %%VERSION%%
 
 RUN set -ex; \
-	apk add --no-cache --virtual .fetch-deps \
+	fetchDeps=" \
+		dirmngr \
 		gnupg \
+	"; \
+	apt-get update; \
+	apt-get install -y --no-install-recommends \
+		$fetchDeps \
 	; \
 	\
 	curl -fsSL -o matomo.tar.gz \
@@ -76,7 +86,8 @@ RUN set -ex; \
 	rm -rf "$GNUPGHOME" matomo.tar.gz.asc; \
 	tar -xzf matomo.tar.gz -C /usr/src/; \
 	rm matomo.tar.gz; \
-	apk del .fetch-deps
+	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $fetchDeps; \
+	rm -rf /var/lib/apt/lists/*
 
 COPY php.ini /usr/local/etc/php/conf.d/php-matomo.ini
 
