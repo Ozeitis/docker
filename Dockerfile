@@ -97,4 +97,4 @@ COPY docker-entrypoint.sh /entrypoint.sh
 # VOLUME /var/www/html
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["%%CMD%%"]
+CMD ["apache2-foreground"]
