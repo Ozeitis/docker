@@ -1,0 +1,8 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    port: ${PORT}
+    volumes:
+      - /var/www/html
