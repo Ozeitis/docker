@@ -1,6 +1,7 @@
 FROM php:8.1-apache
 
 ENV PHP_MEMORY_LIMIT=256M
+ENV MATOMO_VERSION 4.15.1
 
 RUN set -ex; \
 	\
